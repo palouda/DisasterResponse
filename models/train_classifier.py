@@ -132,7 +132,7 @@ class FirstVerbExtractor(BaseEstimator, TransformerMixin):
 
     # Transform across the X series
     def transform(self, X):
-        X_tagged = pd.Series(X).apply(self.starting_verb)
+        X_tagged = pd.Series(X).apply(self.first_verb)
         return pd.DataFrame(X_tagged)
 
 def build_pipeline():
@@ -151,7 +151,7 @@ def build_pipeline():
                 ('tfidf_transformer', TfidfTransformer())
             ])),
 
-            ('starting_verb_transformer', StartingVerbExtractor())
+            ('starting_verb_transformer', FirstVerbExtractor())
         ])),
 
         ('classifier', MultiOutputClassifier(AdaBoostClassifier()))
@@ -224,7 +224,7 @@ def main():
 
     else:
          print("Sample Script Execution:\n\
-> python models/train_classifier.py data/DisasterResponse.db models/classifier.pkl)
+> python models/train_classifier.py data/DisasterResponse.db models/classifier.pkl")
 
 if __name__ == '__main__':
     main()
