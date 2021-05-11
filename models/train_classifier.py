@@ -1,6 +1,6 @@
 """
 Classifier Trainer
-Project: Disaster Response Pipeline (Udacity - Data Science Nanodegree)
+Project: Disaster Response
 
 Sample Script Syntax:
 > python train_classifier.py <path to sqllite  destination db> <path to the pickle file>
@@ -46,44 +46,45 @@ from sklearn.base import BaseEstimator,TransformerMixin
 
 def load_data_from_db(database_filepath):
     """
-    Load Data from the Database Function
+    Function: Load Data from DB
     
     Arguments:
-        database_filepath -> Path to SQLite destination database (e.g. disaster_response_db.db)
+        database_filepath: Path to SQLite destination database (e.g. disaster_response_db.db)
     Output:
-        X -> a dataframe containing features
-        Y -> a dataframe containing labels
-        category_names -> List of categories name
+        X: dataframe containing features
+        Y: dataframe containing labels
+        category_names: List of categories
     """
     
+    # Read in the data from the DB
     engine = create_engine('sqlite:///' + database_filepath)
     table_name = "messages"
     df = pd.read_sql_table(table_name,engine)
     
-    #Remove child alone as it has all zeros only
+    # Remove child_alone column because it is all zeros
     df = df.drop(['child_alone'],axis=1)
     
-    # Given value 2 in the related field are neglible so it could be error. Replacing 2 with 1 to consider it a valid response.
-    # Alternatively, we could have assumed it to be 0 also. In the absence of information I have gone with majority class.
+    # The count of the value of 2 in the related field is negligible. Replace the positive value 2 with the positive value 1
     df['related']=df['related'].map(lambda x: 1 if x == 2 else x)
     
+    # Set X & Y dataframes
     X = df['message']
     y = df.iloc[:,4:]
     
-    #print(X)
-    #print(y.columns)
-    category_names = y.columns # This will be used for visualization purpose
+    # Get category names for later use
+    category_names = y.columns
+    
     return X, y, category_names
 
 
 def tokenize(text,url_place_holder_string="urlplaceholder"):
     """
-    Tokenize the text function
+    Function: Tokenize
     
     Arguments:
-        text -> Text message which needs to be tokenized
+        text: Message to tokenize
     Output:
-        clean_tokens -> List of tokens extracted from the provided text
+        clean_tokens: List of clean tokens extracted from text
     """
     
     # Replace all urls with a urlplaceholder string
@@ -99,23 +100,24 @@ def tokenize(text,url_place_holder_string="urlplaceholder"):
     # Extract the word tokens from the provided text
     tokens = nltk.word_tokenize(text)
     
-    #Lemmanitizer to remove inflectional and derivationally related forms of a word
+    # Remove inflection and derivation related forms of words
     lemmatizer = nltk.WordNetLemmatizer()
 
     # List of clean tokens
     clean_tokens = [lemmatizer.lemmatize(w).lower().strip() for w in tokens]
+    
     return clean_tokens
 
-# Build a custom transformer which will extract the starting verb of a sentence
-class StartingVerbExtractor(BaseEstimator, TransformerMixin):
+# Transformer to extract the first verb of text
+class FirstVerbExtractor(BaseEstimator, TransformerMixin):
     """
-    Starting Verb Extractor class
+    Class: First Verb Extractor class
     
-    This class extract the starting verb of a sentence,
-    creating a new feature for the ML classifier
+    Extracts the first verb of the text
     """
 
-    def starting_verb(self, text):
+    # Find the first verb
+    def first_verb(self, text):
         sentence_list = nltk.sent_tokenize(text)
         for sentence in sentence_list:
             pos_tags = nltk.pos_tag(tokenize(sentence))
@@ -124,20 +126,21 @@ class StartingVerbExtractor(BaseEstimator, TransformerMixin):
                 return True
         return False
 
-    # Given it is a tranformer we can return the self 
+    # Return itself 
     def fit(self, X, y=None):
         return self
 
+    # Transform across the X series
     def transform(self, X):
         X_tagged = pd.Series(X).apply(self.starting_verb)
         return pd.DataFrame(X_tagged)
 
 def build_pipeline():
     """
-    Build Pipeline function
+    Function: Build Pipeline
     
     Output:
-        A Scikit ML Pipeline that process text messages and apply a classifier.
+        A Scikit ML Pipeline that processes text messages and applies the classifier.
         
     """
     pipeline = Pipeline([
@@ -156,69 +159,24 @@ def build_pipeline():
 
     return pipeline
 
-def multioutput_fscore(y_true,y_pred,beta=1):
-    """
-    MultiOutput Fscore
-    
-    This is a performance metric of my own creation.
-    It is a sort of geometric mean of the fbeta_score, computed on each label.
-    
-    It is compatible with multi-label and multi-class problems.
-    It features some peculiarities (geometric mean, 100% removal...) to exclude
-    trivial solutions and deliberatly under-estimate a stangd fbeta_score average.
-    The aim is avoiding issues when dealing with multi-class/multi-label imbalanced cases.
-    
-    It can be used as scorer for GridSearchCV:
-        scorer = make_scorer(multioutput_fscore,beta=1)
-        
-    Arguments:
-        y_true -> List of labels
-        y_prod -> List of predictions
-        beta -> Beta value to be used to calculate fscore metric
-    
-    Output:
-        f1score -> Calculation geometric mean of fscore
-    """
-    
-    # If provided y predictions is a dataframe then extract the values from that
-    if isinstance(y_pred, pd.DataFrame) == True:
-        y_pred = y_pred.values
-    
-    # If provided y actuals is a dataframe then extract the values from that
-    if isinstance(y_true, pd.DataFrame) == True:
-        y_true = y_true.values
-    
-    f1score_list = []
-    for column in range(0,y_true.shape[1]):
-        score = fbeta_score(y_true[:,column],y_pred[:,column],beta,average='weighted')
-        f1score_list.append(score)
-        
-    f1score = np.asarray(f1score_list)
-    f1score = f1score[f1score<1]
-    
-    # Get the geometric mean of f1score
-    f1score = gmean(f1score)
-    return f1score
-
 def evaluate_pipeline(pipeline, X_test, Y_test, category_names):
     """
-    Evaluate Model function
+    Function: Evaluate Pipeline
     
-    This function applies a ML pipeline to a test set and prints out the model performance (accuracy and f1score)
+    Test the ML pipeline and show performance
     
     Arguments:
-        pipeline -> A valid scikit ML Pipeline
-        X_test -> Test features
-        Y_test -> Test labels
-        category_names -> label names (multi-output)
+        pipeline: ML Pipeline
+        X_test: Test features
+        Y_test: Test labels
+        category_names: category names
     """
+    
     Y_pred = pipeline.predict(X_test)
     
-    multi_f1 = multioutput_fscore(Y_test,Y_pred, beta = 1)
-    overall_accuracy = (Y_pred == Y_test).mean().mean()
+    accuracy = (Y_pred == Y_test).mean().mean()
 
-    print('Average overall accuracy {0:.2f}%'.format(overall_accuracy*100))
-    print('F1 score (custom definition) {0:.2f}%'.format(multi_f1*100))
+    print('Average accuracy {0:.2f}%'.format(accuracy*100))
 
     # Print the whole classification report.
     Y_pred = pd.DataFrame(Y_pred, columns = Y_test.columns)
@@ -228,30 +186,22 @@ def evaluate_pipeline(pipeline, X_test, Y_test, category_names):
         print(classification_report(Y_test[column],Y_pred[column]))
 
 
-def save_model_as_pickle(pipeline, pickle_filepath):
+def save_pipeline_as_pickle(pipeline, pickle_filepath):
     """
-    Save Pipeline function
+    Function: Save Pipeline as Pickle
     
-    This function saves trained model as Pickle file, to be loaded later.
+    Save the pipeline model as a pickle file
     
     Arguments:
-        pipeline -> GridSearchCV or Scikit Pipelin object
-        pickle_filepath -> destination path to save .pkl file
+        pipeline: Pipeline to save
+        pickle_filepath: Path for .pkl file
     
     """
     pickle.dump(pipeline, open(pickle_filepath, 'wb'))
 
 def main():
-    """
-    Train Classifier Main function
-    
-    This function applies the Machine Learning Pipeline:
-        1) Extract data from SQLite db
-        2) Train ML model on training set
-        3) Estimate model performance on test set
-        4) Save trained model as Pickle
-    
-    """
+
+    # Assesses arguments and starts the ML Pipeline
     if len(sys.argv) == 3:
         database_filepath, pickle_filepath = sys.argv[1:]
         print('Loading data from {} ...'.format(database_filepath))
@@ -268,16 +218,13 @@ def main():
         evaluate_pipeline(pipeline, X_test, Y_test, category_names)
 
         print('Saving pipeline to {} ...'.format(pickle_filepath))
-        save_model_as_pickle(pipeline, pickle_filepath)
+        save_pipeline_as_pickle(pipeline, pickle_filepath)
 
         print('Trained model saved!')
 
     else:
-         print("Please provide the arguments correctly: \nSample Script Execution:\n\
-> python train_classifier.py ../data/disaster_response_db.db classifier.pkl \n\
-Arguments Description: \n\
-1) Path to SQLite destination database (e.g. disaster_response_db.db)\n\
-2) Path to pickle file name where ML model needs to be saved (e.g. classifier.pkl")
+         print("Sample Script Execution:\n\
+> python models/train_classifier.py data/DisasterResponse.db models/classifier.pkl)
 
 if __name__ == '__main__':
     main()
