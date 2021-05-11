@@ -61,12 +61,6 @@ def load_data_from_db(database_filepath):
     table_name = "messages"
     df = pd.read_sql_table(table_name,engine)
     
-    # Remove child_alone column because it is all zeros
-    df = df.drop(['child_alone'],axis=1)
-    
-    # The count of the value of 2 in the related field is negligible. Replace the positive value 2 with the positive value 1
-    df['related']=df['related'].map(lambda x: 1 if x == 2 else x)
-    
     # Set X & Y dataframes
     X = df['message']
     y = df.iloc[:,4:]
@@ -157,7 +151,14 @@ def build_pipeline():
         ('classifier', MultiOutputClassifier(AdaBoostClassifier()))
     ])
 
-    return pipeline
+    # Improve the model with grid search
+    parameters_grid = {'classifier__estimator__learning_rate': [0.01, 0.02, 0.05],
+              'classifier__estimator__n_estimators': [10, 20, 40]}
+
+    # Run GridSearch on the pipeline
+    cv = GridSearchCV(pipeline, param_grid=parameters_grid, scoring='f1_micro', n_jobs=-1)
+    
+    return cv
 
 def evaluate_pipeline(pipeline, X_test, Y_test, category_names):
     """

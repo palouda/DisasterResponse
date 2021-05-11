@@ -73,7 +73,19 @@ def clean_categories_data(df):
     df = df.drop('categories',axis=1)
     df = pd.concat([df,categories],axis=1)
     df = df.drop_duplicates()
+         
+    # Remove child_alone column because it is all zeros
+    df = df.drop(['child_alone'],axis=1)
     
+    # Check unique values
+    df.related.unique()
+    
+    # The count of the value of 2 in the related field is negligible. Replace the positive value 2 with the positive value 1
+    df['related']=df['related'].map(lambda x: 1 if x == 2 else x)
+    
+    # Check again
+    df.related.unique()
+
     return df
 
 def save_data_to_db(df, database_filename):

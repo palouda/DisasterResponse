@@ -14,7 +14,7 @@
 <a name="introduction"></a>
 ## Introduction
 
-Figure Eight processes messages in real time for response to disaster events. The datasets for this project contain messages and tweets from actual disasters that have been sorted and labelled. The goal of this project is to build a natural language processing model that accurately categorizes new messages.
+Figure Eight processes messages in real time for response to disaster events. The datasets for this project contain messages and tweets from actual disasters that have been sorted and labelled. The goal of this project is to build a natural language processing model that accurately categorizes new messages. This will help in the case of an emergency or disaster by being able to quickly "read" and process messages and then route them to the necessary teams/authorities, improving response time and recovery/relief efforts.
 
 This project is divided in the following key sections:
 
